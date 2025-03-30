@@ -1,6 +1,7 @@
 import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, UITransform, EventTouch, Button, Label } from 'cc';
 import { MahjongTile } from './MahjongTile';
 import { HuPaiChecker } from './HuPaiChecker';
+import Monster from './Monster'; // 引入Monster类
 const { ccclass, property } = _decorator;
 
 @ccclass('GameManager')
@@ -17,6 +18,9 @@ export class GameManager extends Component {
     @property(Node)
     huResultPopup: Node = null; // 计分窗口
 
+    @property(Prefab)
+    monsterPrefab: Prefab = null; // 怪物预制资源
+
     private tiles: Node[] = [];
     private raisedTile: Node = null;
     private handTiles: Node[] = [];
@@ -32,15 +36,15 @@ export class GameManager extends Component {
             log(`Error loading tile sprites: ${err}`);
         });
 
-        // 添加屏幕点击事件监听
-        // this.node.on(Node.EventType.TOUCH_START, this.onScreenTouch, this);
-
         // 初始化胡牌按钮
         this.huButton.active = false;
         this.huButton.on(Button.EventType.CLICK, this.onHuButtonClick, this);
 
         // 初始化计分窗口
         this.huResultPopup.active = false;
+
+        // 定时生成怪物
+        this.schedule(this.spawnMonster, 2);
     }
 
     onDestroy() {
@@ -116,11 +120,11 @@ export class GameManager extends Component {
     }
 
     updateHandTiles() {
-        this.sortHandTiles();
+        this.sortHandTiles(); 
         const tileWidth = this.handArea.getComponent(UITransform).width / 14;
         for (let i = 0; i < this.handTiles.length; i++) {
             let tile = this.handTiles[i];
-            tile.setPosition(new Vec3(i * tileWidth - this.handArea.getComponent(UITransform).width / 2 + tileWidth / 2, 0, 0));
+            tile.setPosition(new Vec3(i * tileWidth - this.handArea.getComponent(UITransform).width / 2 + tileWidth / 2, 0, 0)); // 禁用自动位置更新
             tile.active = true;
             // 保存每个麻将的初始位置
             tile.getComponent(MahjongTile).originalPosition.set(tile.position);
@@ -162,6 +166,7 @@ export class GameManager extends Component {
         tile.removeFromParent();
         this.raisedTile = null;
         this.drawTile();
+        this.updateHandTiles(); // 更新手牌显示
     }
 
     drawTile() {
@@ -228,5 +233,19 @@ export class GameManager extends Component {
             this.raisedTile.getComponent(MahjongTile).lower();
             this.raisedTile = null;
         }
+    }
+
+    spawnMonster() {
+        const monster = instantiate(this.monsterPrefab);
+        if (monster) {
+            log('Monster instantiated successfully.');
+        } else {
+            log('Failed to instantiate monster.');
+        }
+        monster.parent = this.node;
+        // 设置怪物在屏幕最右侧生成
+        const uiTransform = monster.getComponent(UITransform);
+        monster.setPosition(cc.winSize.width * 0.9 + uiTransform.width / 2, Math.random() * cc.winSize.height);
+        log(`Monster spawned at position: ${monster.position}`);
     }
 }
