@@ -237,15 +237,15 @@ export class GameManager extends Component {
 
     spawnMonster() {
         const monster = instantiate(this.monsterPrefab);
-        if (monster) {
-            log('Monster instantiated successfully.');
-        } else {
-            log('Failed to instantiate monster.');
-        }
+        // if (monster) {
+        //     log('Monster instantiated successfully.');
+        // } else {
+        //     log('Failed to instantiate monster.');
+        // }
         monster.parent = this.node;
         // 设置怪物在屏幕最右侧生成
         const uiTransform = monster.getComponent(UITransform);
         monster.setPosition(cc.winSize.width * 0.9 + uiTransform.width / 2, Math.random() * cc.winSize.height);
-        log(`Monster spawned at position: ${monster.position}`);
+        // log(`Monster spawned at position: ${monster.position}`);
     }
 }

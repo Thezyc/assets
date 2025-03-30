@@ -1,14 +1,14 @@
-import { _decorator, Component, Node, Vec3, log, EventMouse, input, Input, UITransform, director } from 'cc';
+import { _decorator, Component, Node, Vec3, log, EventMouse, Input, UITransform, director, find } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('MahjongTile')
 export class MahjongTile extends Component {
-    private isRaised: boolean = false;
     public originalPosition: Vec3 = new Vec3();
-    private gameManager: Node = null;
     private isDragging: boolean = false;
     private offset: Vec3 = new Vec3();
     private gridNodes: Node[] = [];
+    private gameManager: Node = null;
+
 
     onLoad() {
         // 设置麻将的显示层级
@@ -16,8 +16,6 @@ export class MahjongTile extends Component {
 
         // 保存麻将牌的初始位置
         this.originalPosition.set(this.node.position);
-        // 添加点击事件监听
-        this.node.on(Node.EventType.TOUCH_END, this.onTileClicked, this);
 
         // 添加鼠标事件监听器
         this.node.on(Input.EventType.MOUSE_DOWN, this.onMouseDown, this);
@@ -25,9 +23,12 @@ export class MahjongTile extends Component {
         this.node.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
 
         // 获取 Slots 节点
-        const slotsNode = director.getScene().getChildByName('Slots');
+        const slotsNode = find('Canvas/Slots');
         if (slotsNode) {
             this.gridNodes = slotsNode.children;
+            log(`Found ${this.gridNodes.length} slots`);
+        } else {
+            log('Slots node not found');
         }
     }
 
@@ -36,17 +37,6 @@ export class MahjongTile extends Component {
         this.node.off(Input.EventType.MOUSE_DOWN, this.onMouseDown, this);
         this.node.off(Input.EventType.MOUSE_MOVE, this.onMouseMove, this);
         this.node.off(Input.EventType.MOUSE_UP, this.onMouseUp, this);
-    }
-
-    onTileClicked() {
-        log(`Tile clicked: ${this.node.name}`);
-        if (this.isRaised) {
-            // 如果麻将牌已抬起，再次点击将其弃出
-            this.gameManager.getComponent('GameManager').discardTile(this.node);
-        } else {
-            // 如果麻将牌未抬起，抬起麻将牌
-            this.gameManager.getComponent('GameManager').raiseTile(this.node);
-        }
     }
 
     onMouseDown(event: EventMouse) {
@@ -93,7 +83,7 @@ export class MahjongTile extends Component {
             // 判断麻将牌的大部分区域是否与格子的边界框相交
             if (gridBoundingBox.intersects(tileBoundingBox)) {
                 // 计算距离
-                const distance = this.node.position.subtract(gridNode.position).length();
+                const distance = this.node.worldPosition.subtract(gridNode.worldPosition).length();
                 if (distance < minDistance) {
                     minDistance = distance;
                     closestGridNode = gridNode;
@@ -103,7 +93,7 @@ export class MahjongTile extends Component {
 
         if (closestGridNode) {
             // 将麻将牌放置在最近的格子中心，并恢复正常的显示层级
-            this.node.setPosition(closestGridNode.position);
+            this.node.setWorldPosition(closestGridNode.worldPosition);
             this.node.setSiblingIndex(1000);
         } else {
             // 如果不在格子内，恢复到原始位置，并恢复正常的显示层级
@@ -116,13 +106,13 @@ export class MahjongTile extends Component {
         this.gameManager = gameManager;
     }
 
-    raise() {
-        // this.node.setPosition(this.originalPosition.clone().add3f(0, 50, 0)); // 基于初始位置抬起
-        // this.isRaised = true;
-    }
+    // raise() {
+    //     // this.node.setPosition(this.originalPosition.clone().add3f(0, 50, 0)); // 基于初始位置抬起
+    //     // this.isRaised = true;
+    // }
     
-    lower() {
-        // this.node.setPosition(this.originalPosition); // 恢复到初始位置
-        // this.isRaised = false;
-    }
+    // lower() {
+    //     // this.node.setPosition(this.originalPosition); // 恢复到初始位置
+    //     // this.isRaised = false;
+    // }
 }

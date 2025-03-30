@@ -107,7 +107,7 @@
       "r": 255,
       "g": 255,
       "b": 255,
-      "a": 255
+      "a": 100
     },
     "_spriteFrame": {
       "__uuid__": "d1378699-3914-473b-9980-6701ac17c09f@f9941",
@@ -124,7 +124,7 @@
     "_fillStart": 0,
     "_fillRange": 0,
     "_isTrimmedMode": true,
-    "_useGrayscale": false,
+    "_useGrayscale": true,
     "_atlas": null,
     "_id": ""
   },
@@ -141,6 +141,7 @@
       "__id__": 0
     },
     "fileId": "cctMAIacBAIYkkXO0XtVld",
+    "instance": null,
     "targetOverrides": null
   }
 ]
