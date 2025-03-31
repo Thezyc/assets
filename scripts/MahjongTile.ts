@@ -8,7 +8,7 @@ export class MahjongTile extends Component {
     private offset: Vec3 = new Vec3();
     private gridNodes: Node[] = [];
     private gameManager: Node = null;
-
+    private gridNodeMap: Map<Node, Node> = new Map(); // 用于记录格子和麻将的映射关系
 
     onLoad() {
         // 设置麻将的显示层级
@@ -67,9 +67,8 @@ export class MahjongTile extends Component {
     onMouseUp(event: EventMouse) {
         this.isDragging = false;
 
-        // 获取麻将牌的边界框
-        const uiTransform = this.node.getComponent(UITransform);
-        const tileBoundingBox = uiTransform.getBoundingBoxToWorld();
+        // 获取麻将牌的中心点
+        const tileCenter = this.node.getComponent(UITransform).convertToWorldSpaceAR(Vec3.ZERO);
 
         // 检查是否在格子内
         let closestGridNode = null;
@@ -78,12 +77,12 @@ export class MahjongTile extends Component {
         for (let i = 0; i < this.gridNodes.length; i++) {
             const gridNode = this.gridNodes[i];
             const gridTransform = gridNode.getComponent(UITransform);
-            const gridBoundingBox = gridTransform.getBoundingBoxToWorld();
+            const gridCenter = gridTransform.convertToWorldSpaceAR(Vec3.ZERO);
 
-            // 判断麻将牌的大部分区域是否与格子的边界框相交
-            if (gridBoundingBox.intersects(tileBoundingBox)) {
-                // 计算距离
-                const distance = this.node.worldPosition.subtract(gridNode.worldPosition).length();
+            // 判断麻将牌的中心点是否与格子的边界框相交
+            if (gridTransform.getBoundingBoxToWorld().contains(tileCenter)) {
+                // 计算麻将牌中心与格子中心的距离
+                const distance = tileCenter.subtract(gridCenter).length();
                 if (distance < minDistance) {
                     minDistance = distance;
                     closestGridNode = gridNode;
@@ -92,8 +91,17 @@ export class MahjongTile extends Component {
         }
 
         if (closestGridNode) {
-            // 将麻将牌放置在最近的格子中心，并恢复正常的显示层级
-            this.node.setWorldPosition(closestGridNode.worldPosition);
+            const existingTile = this.gridNodeMap.get(closestGridNode);
+            if (existingTile) {
+                // 如果格子中已有麻将，与当前麻将交换位置
+                const existingTilePosition = existingTile.getWorldPosition();
+                existingTile.setWorldPosition(this.node.getWorldPosition());
+                this.node.setWorldPosition(existingTilePosition);
+            } else {
+                // 将麻将牌放置在最近的格子中心
+                this.node.setWorldPosition(closestGridNode.getComponent(UITransform).convertToWorldSpaceAR(Vec3.ZERO));
+                this.gridNodeMap.set(closestGridNode, this.node);
+            }
             this.node.setSiblingIndex(1000);
         } else {
             // 如果不在格子内，恢复到原始位置，并恢复正常的显示层级
