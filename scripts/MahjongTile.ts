@@ -68,15 +68,29 @@ export class MahjongTile extends Component {
         this.isDragging = false;
 
         // 获取麻将牌的中心点
-        const tileCenter = this.node.getComponent(UITransform).convertToWorldSpaceAR(Vec3.ZERO);
+        const uiTransform = this.node.getComponent(UITransform);
+        if (!uiTransform) {
+            log('UITransform component not found on tile.');
+            return;
+        }
+        const tileCenter = uiTransform.convertToWorldSpaceAR(Vec3.ZERO);
 
         // 检查是否在格子内
+        if (!this.gridNodes || this.gridNodes.length === 0) {
+            log('Grid nodes not found or empty.');
+            return;
+        }
+
         let closestGridNode = null;
         let minDistance = Infinity;
 
         for (let i = 0; i < this.gridNodes.length; i++) {
             const gridNode = this.gridNodes[i];
             const gridTransform = gridNode.getComponent(UITransform);
+            if (!gridTransform) {
+                log(`UITransform component not found on grid node at index ${i}.`);
+                continue;
+            }
             const gridCenter = gridTransform.convertToWorldSpaceAR(Vec3.ZERO);
 
             // 判断麻将牌的中心点是否与格子的边界框相交
@@ -94,12 +108,24 @@ export class MahjongTile extends Component {
             const existingTile = this.gridNodeMap.get(closestGridNode);
             if (existingTile) {
                 // 如果格子中已有麻将，与当前麻将交换位置
-                const existingTilePosition = existingTile.getWorldPosition();
-                existingTile.setWorldPosition(this.node.getWorldPosition());
-                this.node.setWorldPosition(existingTilePosition);
+                const existingTilePosition = existingTile.getPosition();
+                const currentTilePosition = this.node.getPosition();
+
+                existingTile.setPosition(currentTilePosition);
+                this.node.setPosition(existingTilePosition);
+
+                // 更新映射关系
+                this.gridNodeMap.set(closestGridNode, this.node);
+                const originalGridNode = [...this.gridNodeMap.entries()].find(([key, value]) => value === existingTile)?.[0];
+                if (originalGridNode) {
+                    this.gridNodeMap.set(originalGridNode, existingTile);
+                }
+
+                // 重置状态，避免重复交换
+                this.isDragging = false;
             } else {
                 // 将麻将牌放置在最近的格子中心
-                this.node.setWorldPosition(closestGridNode.getComponent(UITransform).convertToWorldSpaceAR(Vec3.ZERO));
+                this.node.setPosition(closestGridNode.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(0, 0, 0)));
                 this.gridNodeMap.set(closestGridNode, this.node);
             }
             this.node.setSiblingIndex(1000);
@@ -112,6 +138,14 @@ export class MahjongTile extends Component {
 
     setGameManager(gameManager: Node) {
         this.gameManager = gameManager;
+    }
+
+    setGridNodes(gridNodes: Node[]) {
+        this.gridNodes = gridNodes;
+    }
+
+    setGridNodeMap(gridNodeMap: Map<Node, Node>) {
+        this.gridNodeMap = gridNodeMap;
     }
 
     raise() {

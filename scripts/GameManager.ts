@@ -26,6 +26,8 @@ export class GameManager extends Component {
     private handTiles: Node[] = [];
     private handArea: Node = null;
     private huPaiChecker: HuPaiChecker = new HuPaiChecker();
+    private gridNodes: Node[] = [];
+    private gridNodeMap: Map<Node, Node> = new Map();
 
     onLoad() {
         log('GameManager onLoad');
@@ -45,6 +47,15 @@ export class GameManager extends Component {
 
         // 定时生成怪物
         this.schedule(this.spawnMonster, 2);
+
+        // 获取 Slots 节点
+        const slotsNode = find('Canvas/Slots');
+        if (slotsNode) {
+            this.gridNodes = slotsNode.children;
+            log(`Found ${this.gridNodes.length} slots`);
+        } else {
+            log('Slots node not found');
+        }
     }
 
     onDestroy() {
@@ -87,6 +98,8 @@ export class GameManager extends Component {
             let tileScript = tile.getComponent(MahjongTile);
             if (tileScript) {
                 tileScript.setGameManager(this.node);
+                tileScript.setGridNodes(this.gridNodes); // 设置格子节点
+                tileScript.setGridNodeMap(this.gridNodeMap); // 设置格子节点映射关系
             } else {
                 log(`Error: MahjongTile component not found on tilePrefab at index ${i}`);
             }
@@ -120,7 +133,7 @@ export class GameManager extends Component {
     }
 
     updateHandTiles() {
-        this.sortHandTiles(); 
+        this.sortHandTiles();
         const tileWidth = this.handArea.getComponent(UITransform).width / 14;
         for (let i = 0; i < this.handTiles.length; i++) {
             let tile = this.handTiles[i];
