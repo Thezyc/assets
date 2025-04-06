@@ -114,13 +114,13 @@ export class MahjongTile extends Component {
         this.gameManager = gameManager;
     }
 
-    // raise() {
-    //     // this.node.setPosition(this.originalPosition.clone().add3f(0, 50, 0)); // 基于初始位置抬起
-    //     // this.isRaised = true;
-    // }
+    raise() {
+        // this.node.setPosition(this.originalPosition.clone().add3f(0, 50, 0)); // 基于初始位置抬起
+        // this.isRaised = true;
+    }
     
-    // lower() {
-    //     // this.node.setPosition(this.originalPosition); // 恢复到初始位置
-    //     // this.isRaised = false;
-    // }
+    lower() {
+        // this.node.setPosition(this.originalPosition); // 恢复到初始位置
+        // this.isRaised = false;
+    }
 }
