@@ -31,7 +31,11 @@ export class GameManager extends Component {
 
     onLoad() {
         log('GameManager onLoad');
+        
+        // 获取 HandArea 节点
         this.handArea = this.node.getChildByName('HandArea');
+        
+        // 加载麻将牌图片资源并初始化麻将牌
         this.loadTileSprites().then(() => {
             this.initTiles();
         }).catch((err) => {
@@ -39,11 +43,21 @@ export class GameManager extends Component {
         });
 
         // 初始化胡牌按钮
-        this.huButton.active = false;
-        this.huButton.on(Button.EventType.CLICK, this.onHuButtonClick, this);
+        if (this.huButton) {
+            log('huButton found');
+            this.huButton.active = false;
+            this.huButton.on(Button.EventType.CLICK, this.onHuButtonClick, this);
+        } else {
+            log('huButton not found');
+        }
 
         // 初始化计分窗口
-        this.huResultPopup.active = false;
+        if (this.huResultPopup) {
+            log('huResultPopup found');
+            this.huResultPopup.active = false;
+        } else {
+            log('huResultPopup not found');
+        }
 
         // 定时生成怪物
         this.schedule(this.spawnMonster, 2);
@@ -53,6 +67,7 @@ export class GameManager extends Component {
         if (slotsNode) {
             this.gridNodes = slotsNode.children;
             log(`Found ${this.gridNodes.length} slots`);
+            this.gridNodes.forEach((node, index) => log(`Slot ${index}: ${node.name}`));
         } else {
             log('Slots node not found');
         }
@@ -83,6 +98,10 @@ export class GameManager extends Component {
 
     initTiles() {
         log('Initializing tiles');
+        if (!this.tilePrefab) {
+            log('Error: tilePrefab is null');
+            return;
+        }
         for (let i = 0; i < 136; i++) {
             let tile = instantiate(this.tilePrefab);
             if (!tile) {

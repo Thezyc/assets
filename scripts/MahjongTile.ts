@@ -125,8 +125,12 @@ export class MahjongTile extends Component {
                 this.isDragging = false;
             } else {
                 // 将麻将牌放置在最近的格子中心
-                this.node.setPosition(closestGridNode.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(0, 0, 0)));
-                this.gridNodeMap.set(closestGridNode, this.node);
+                const gridNodeTransform = closestGridNode.getComponent(UITransform);
+                if (gridNodeTransform) {
+                    const newTilePosition = gridNodeTransform.convertToNodeSpaceAR(new Vec3(0, 0, 0));
+                    this.node.setPosition(newTilePosition);
+                    this.gridNodeMap.set(closestGridNode, this.node);
+                }
             }
             this.node.setSiblingIndex(1000);
         } else {
@@ -134,6 +138,10 @@ export class MahjongTile extends Component {
             this.node.setPosition(this.originalPosition);
             this.node.setSiblingIndex(1000);
         }
+
+        // 添加调试日志
+        log(`Closest grid node: ${closestGridNode?.name}, Tile position: ${this.node.position}`);
+        log(`Grid node map: ${[...this.gridNodeMap.entries()].map(([key, value]) => `${key.name}: ${value.name}`).join(', ')}`);
     }
 
     setGameManager(gameManager: Node) {
