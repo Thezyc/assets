@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, log, EventMouse, Input, UITransform, director, find } from 'cc';
+import { _decorator, Component, Node, Vec3, log, EventMouse, Input, UITransform, view, find } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('MahjongTile')
@@ -106,29 +106,20 @@ export class MahjongTile extends Component {
 
         if (closestGridNode) {
             const existingTile = this.gridNodeMap.get(closestGridNode);
-            if (existingTile) {
-                // 如果格子中已有麻将，与当前麻将交换位置
-                const existingTilePosition = existingTile.getPosition();
-                const currentTilePosition = this.node.getPosition();
-
-                existingTile.setPosition(currentTilePosition);
-                this.node.setPosition(existingTilePosition);
-
-                // 更新映射关系
-                this.gridNodeMap.set(closestGridNode, this.node);
-                const originalGridNode = [...this.gridNodeMap.entries()].find(([key, value]) => value === existingTile)?.[0];
-                if (originalGridNode) {
-                    this.gridNodeMap.set(originalGridNode, existingTile);
-                }
-
-                // 重置状态，避免重复交换
-                this.isDragging = false;
-            } else {
-                // 将麻将牌放置在最近的格子中心
+            if (!existingTile) {
+                // 将麻将牌放置在最近的空格子中心
                 const gridNodeTransform = closestGridNode.getComponent(UITransform);
                 if (gridNodeTransform) {
                     const newTilePosition = gridNodeTransform.convertToNodeSpaceAR(new Vec3(0, 0, 0));
                     this.node.setPosition(newTilePosition);
+
+                    // Ensure the new position is within screen boundaries
+                    const screenSize = view.getVisibleSize();
+                    const tilePosition = this.node.position;
+                    tilePosition.x = Math.max(0, Math.min(screenSize.width, tilePosition.x));
+                    tilePosition.y = Math.max(0, Math.min(screenSize.height, tilePosition.y));
+                    this.node.setPosition(tilePosition);
+
                     this.gridNodeMap.set(closestGridNode, this.node);
                 }
             }
@@ -142,6 +133,9 @@ export class MahjongTile extends Component {
         // 添加调试日志
         log(`Closest grid node: ${closestGridNode?.name}, Tile position: ${this.node.position}`);
         log(`Grid node map: ${[...this.gridNodeMap.entries()].map(([key, value]) => `${key.name}: ${value.name}`).join(', ')}`);
+
+        // 添加麻将牌移动完成后的日志
+        log(`Tile ${this.node.name} moved to position: ${this.node.position}`);
     }
 
     setGameManager(gameManager: Node) {
