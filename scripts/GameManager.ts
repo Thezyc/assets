@@ -1,4 +1,4 @@
-import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, UITransform, EventTouch, Button, Label } from 'cc';
+import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, UITransform, EventTouch, Button, Label, find } from 'cc';
 import { MahjongTile } from './MahjongTile';
 import { HuPaiChecker } from './HuPaiChecker';
 import Monster from './Monster'; // 引入Monster类
@@ -23,18 +23,12 @@ export class GameManager extends Component {
 
     private tiles: Node[] = [];
     private raisedTile: Node = null;
-    private handTiles: Node[] = [];
-    private handArea: Node = null;
-    private huPaiChecker: HuPaiChecker = new HuPaiChecker();
     private gridNodes: Node[] = [];
     private gridNodeMap: Map<Node, Node> = new Map();
 
     onLoad() {
         log('GameManager onLoad');
-        
-        // 获取 HandArea 节点
-        this.handArea = this.node.getChildByName('HandArea');
-        
+
         // 加载麻将牌图片资源并初始化麻将牌
         this.loadTileSprites().then(() => {
             this.initTiles();
@@ -138,49 +132,20 @@ export class GameManager extends Component {
 
     dealTiles() {
         log('Dealing tiles');
+        const slotCount = Math.min(this.tiles.length, this.gridNodes.length);
         for (let i = 0; i < 13; i++) {
             let tile = this.tiles.pop();
             if (!tile) {
                 log(`Error: Tile is null at index ${i}`);
                 continue;
             }
-            this.handTiles.push(tile);
-            tile.setParent(this.handArea, false);
-        }
-        this.drawTile(); // 摸一张牌，使手牌区有14张麻将
-        this.updateHandTiles();
-    }
+            let gridNode = this.gridNodes[i];
+            log(`Dealing tile ${tile.name} to slot ${gridNode.name}`);
+            tile.setParent(gridNode, false);
+            tile.setPosition(Vec3.ZERO);
 
-    updateHandTiles() {
-        this.sortHandTiles();
-        const tileWidth = this.handArea.getComponent(UITransform).width / 14;
-        for (let i = 0; i < this.handTiles.length; i++) {
-            let tile = this.handTiles[i];
-            tile.setPosition(new Vec3(i * tileWidth - this.handArea.getComponent(UITransform).width / 2 + tileWidth / 2, 0, 0)); // 禁用自动位置更新
-            tile.active = true;
             // 保存每个麻将的初始位置
             tile.getComponent(MahjongTile).originalPosition.set(tile.position);
-            // 设置图层优先级
-            tile.setSiblingIndex(i);
-        }
-
-        // 输出当前手牌到日志
-        let handTilesLog = this.handTiles.map(tile => tile.getComponent(Sprite).spriteFrame.name).join(', ');
-        log(`Current hand tiles: ${handTilesLog}`);
-
-        this.checkHu();
-    }
-
-    sortHandTiles() {
-        // 确保最新摸到的麻将放在最右边
-        const lastTile = this.handTiles.pop();
-        this.handTiles.sort((a, b) => {
-            const spriteA = a.getComponent(Sprite).spriteFrame.name;
-            const spriteB = b.getComponent(Sprite).spriteFrame.name;
-            return spriteA.localeCompare(spriteB);
-        });
-        if (lastTile) {
-            this.handTiles.push(lastTile);
         }
     }
 
@@ -194,90 +159,14 @@ export class GameManager extends Component {
 
     discardTile(tile: Node) {
         log(`Discarding tile: ${tile.name}`);
-        this.handTiles = this.handTiles.filter(t => t !== tile);
         tile.removeFromParent();
         this.raisedTile = null;
-        this.drawTile();
-        this.updateHandTiles(); // 更新手牌显示
-    }
-
-    drawTile() {
-        if (this.tiles.length > 0) {
-            let tile = this.tiles.pop();
-            this.handTiles.push(tile);
-            tile.setParent(this.handArea, false);
-            this.updateHandTiles();
-            log(`Drew new tile: ${tile.name}`);
-        } else {
-            log('No more tiles to draw');
-        }
-    }
-
-    checkHu() {
-        // 创建一个对象，表示所有可能的麻将牌
-        let tileCounts = {
-            feng: new Array(4).fill(0),
-            jian: new Array(3).fill(0),
-            wan: new Array(9).fill(0),
-            tong: new Array(9).fill(0),
-            tiao: new Array(9).fill(0),
-        };
-
-        // 获取当前手牌并转换为数字数组
-        this.handTiles.forEach(tile => {
-            let spriteFrameName = tile.getComponent(Sprite).spriteFrame.name;
-            let parts = spriteFrameName.split('_');
-            let type = parts[2];
-            let number = parseInt(parts[3]) - 1;
-            if (tileCounts[type]) {
-                tileCounts[type][number]++;
-            }
-        });
-
-        // 输出解析后的手牌统计信息到日志
-        log('Tile counts:', JSON.stringify(tileCounts));
-
-        // 设置胡牌检测器的手牌
-        this.huPaiChecker.setTiles(tileCounts);
-
-        // 检查是否胡牌
-        if (this.huPaiChecker.isHu()) {
-            log('Hu! You win!');
-            this.huButton.active = true; // 显示胡牌按钮
-        } else {
-            log('Not a Hu yet.');
-            this.huButton.active = false; // 隐藏胡牌按钮
-        }
-    }
-
-    onHuButtonClick() {
-        // 显示计分窗口
-        this.huResultPopup.active = true;
-
-        // 列出满足的番种（此处简单示例，可以根据实际需求列出具体番种）
-        let huResultLabel = this.huResultPopup.getComponentInChildren(Label);
-        huResultLabel.string = "恭喜胡牌！\n番种：XX番，YY番";
-    }
-
-    onScreenTouch(event: EventTouch) {
-        // 如果点击的不是麻将牌，则放下所有抬起的麻将牌
-        if (this.raisedTile) {
-            this.raisedTile.getComponent(MahjongTile).lower();
-            this.raisedTile = null;
-        }
     }
 
     spawnMonster() {
         const monster = instantiate(this.monsterPrefab);
-        // if (monster) {
-        //     log('Monster instantiated successfully.');
-        // } else {
-        //     log('Failed to instantiate monster.');
-        // }
         monster.parent = this.node;
-        // 设置怪物在屏幕最右侧生成
         const uiTransform = monster.getComponent(UITransform);
         monster.setPosition(cc.winSize.width * 0.9 + uiTransform.width / 2, Math.random() * cc.winSize.height);
-        // log(`Monster spawned at position: ${monster.position}`);
     }
 }

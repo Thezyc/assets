@@ -10,6 +10,9 @@ export class MahjongTile extends Component {
     private gameManager: Node = null;
     private gridNodeMap: Map<Node, Node> = new Map(); // 用于记录格子和麻将的映射关系
 
+    // 定义一个常量，表示圆形区域的半径
+    private static readonly PLACEMENT_RADIUS: number = 50;
+
     onLoad() {
         // 设置麻将的显示层级
         this.node.setSiblingIndex(1000);
@@ -75,67 +78,65 @@ export class MahjongTile extends Component {
         }
         const tileCenter = uiTransform.convertToWorldSpaceAR(Vec3.ZERO);
 
-        // 检查是否在格子内
-        if (!this.gridNodes || this.gridNodes.length === 0) {
-            log('Grid nodes not found or empty.');
-            return;
-        }
+        // 查找最近的网格节点
+        const closestGridNode = this.findClosestGridNode(tileCenter);
 
-        let closestGridNode = null;
-        let minDistance = Infinity;
-
-        for (let i = 0; i < this.gridNodes.length; i++) {
-            const gridNode = this.gridNodes[i];
-            const gridTransform = gridNode.getComponent(UITransform);
-            if (!gridTransform) {
-                log(`UITransform component not found on grid node at index ${i}.`);
-                continue;
-            }
-            const gridCenter = gridTransform.convertToWorldSpaceAR(Vec3.ZERO);
-
-            // 判断麻将牌的中心点是否与格子的边界框相交
-            if (gridTransform.getBoundingBoxToWorld().contains(tileCenter)) {
-                // 计算麻将牌中心与格子中心的距离
-                const distance = tileCenter.subtract(gridCenter).length();
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestGridNode = gridNode;
-                }
-            }
-        }
-
+        // 如果找到最近的空格子，将麻将放置在该格子中心，否则恢复到原始位置
         if (closestGridNode) {
-            const existingTile = this.gridNodeMap.get(closestGridNode);
-            if (!existingTile) {
-                // 将麻将牌放置在最近的空格子中心
-                const gridNodeTransform = closestGridNode.getComponent(UITransform);
-                if (gridNodeTransform) {
-                    const newTilePosition = gridNodeTransform.convertToNodeSpaceAR(new Vec3(0, 0, 0));
-                    this.node.setPosition(newTilePosition);
-
-                    // Ensure the new position is within screen boundaries
-                    const screenSize = view.getVisibleSize();
-                    const tilePosition = this.node.position;
-                    tilePosition.x = Math.max(0, Math.min(screenSize.width, tilePosition.x));
-                    tilePosition.y = Math.max(0, Math.min(screenSize.height, tilePosition.y));
-                    this.node.setPosition(tilePosition);
-
-                    this.gridNodeMap.set(closestGridNode, this.node);
-                }
-            }
-            this.node.setSiblingIndex(1000);
+            this.placeTileInGridNode(closestGridNode);
         } else {
-            // 如果不在格子内，恢复到原始位置，并恢复正常的显示层级
-            this.node.setPosition(this.originalPosition);
-            this.node.setSiblingIndex(1000);
+            this.resetTilePosition();
         }
-
-        // 添加调试日志
-        log(`Closest grid node: ${closestGridNode?.name}, Tile position: ${this.node.position}`);
-        log(`Grid node map: ${[...this.gridNodeMap.entries()].map(([key, value]) => `${key.name}: ${value.name}`).join(', ')}`);
 
         // 添加麻将牌移动完成后的日志
         log(`Tile ${this.node.name} moved to position: ${this.node.position}`);
+    }
+
+    findClosestGridNode(tileCenter: Vec3): Node | null {
+        if (!this.gridNodes || this.gridNodes.length === 0) {
+            log('Grid nodes not found or empty.');
+            return null;
+        }
+
+        for (const gridNode of this.gridNodes) {
+            const gridTransform = gridNode.getComponent(UITransform);
+            if (!gridTransform) {
+                log(`UITransform component not found on grid node ${gridNode.name}.`);
+                continue;
+            }
+            const gridBoundingBox = gridTransform.getBoundingBoxToWorld();
+
+            // 判断麻将牌的中心点是否在网格节点的边界框内
+            if (gridBoundingBox.contains(tileCenter)) {
+                return gridNode;
+            }
+        }
+
+        return null;
+    }
+
+    placeTileInGridNode(gridNode: Node) {
+        const gridTransform = gridNode.getComponent(UITransform);
+        if (gridTransform) {
+            const newTilePosition = gridTransform.convertToNodeSpaceAR(new Vec3(0, 0, 0));
+            this.node.setPosition(newTilePosition);
+
+            // Ensure the new position is within screen boundaries
+            const screenSize = view.getVisibleSize();
+            const tilePosition = this.node.position;
+            tilePosition.x = Math.max(0, Math.min(screenSize.width, tilePosition.x));
+            tilePosition.y = Math.max(0, Math.min(screenSize.height, tilePosition.y));
+            this.node.setPosition(tilePosition);
+
+            this.gridNodeMap.set(gridNode, this.node);
+        }
+
+        this.node.setSiblingIndex(1000);
+    }
+
+    resetTilePosition() {
+        this.node.setPosition(this.originalPosition);
+        this.node.setSiblingIndex(1000);
     }
 
     setGameManager(gameManager: Node) {
