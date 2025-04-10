@@ -1,7 +1,5 @@
 import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, UITransform, EventTouch, Button, Label, find } from 'cc';
 import { MahjongTile } from './MahjongTile';
-import { HuPaiChecker } from './HuPaiChecker';
-import Monster from './Monster'; // 引入Monster类
 const { ccclass, property } = _decorator;
 
 @ccclass('GameManager')
@@ -12,17 +10,10 @@ export class GameManager extends Component {
     @property([SpriteFrame])
     tileSprites: SpriteFrame[] = [];
 
-    @property(Node)
-    huButton: Node = null; // 胡牌按钮
-
-    @property(Node)
-    huResultPopup: Node = null; // 计分窗口
-
     @property(Prefab)
     monsterPrefab: Prefab = null; // 怪物预制资源
 
     private tiles: Node[] = [];
-    private raisedTile: Node = null;
     private gridNodes: Node[] = [];
     private gridNodeMap: Map<Node, Node> = new Map();
 
@@ -36,40 +27,20 @@ export class GameManager extends Component {
             log(`Error loading tile sprites: ${err}`);
         });
 
-        // 初始化胡牌按钮
-        if (this.huButton) {
-            log('huButton found');
-            this.huButton.active = false;
-            this.huButton.on(Button.EventType.CLICK, this.onHuButtonClick, this);
-        } else {
-            log('huButton not found');
-        }
 
-        // 初始化计分窗口
-        if (this.huResultPopup) {
-            log('huResultPopup found');
-            this.huResultPopup.active = false;
+        // 获取 Grids 节点
+        const gridsNode = find('Canvas/Grids');
+        if (gridsNode) {
+            this.gridNodes = gridsNode.children;
+            log(`Found ${this.gridNodes.length} grids`);
+            this.gridNodes.forEach((node, index) => log(`Grid ${index}: ${node.name}`));
         } else {
-            log('huResultPopup not found');
-        }
-
-        // 定时生成怪物
-        this.schedule(this.spawnMonster, 2);
-
-        // 获取 Slots 节点
-        const slotsNode = find('Canvas/Slots');
-        if (slotsNode) {
-            this.gridNodes = slotsNode.children;
-            log(`Found ${this.gridNodes.length} slots`);
-            this.gridNodes.forEach((node, index) => log(`Slot ${index}: ${node.name}`));
-        } else {
-            log('Slots node not found');
+            log('Grids node not found');
         }
     }
 
     onDestroy() {
-        // 移除屏幕点击事件监听
-        this.node.off(Node.EventType.TOUCH_START, this.onScreenTouch, this);
+
     }
 
     async loadTileSprites() {
@@ -132,7 +103,7 @@ export class GameManager extends Component {
 
     dealTiles() {
         log('Dealing tiles');
-        const slotCount = Math.min(this.tiles.length, this.gridNodes.length);
+        const gridCount = Math.min(this.tiles.length, this.gridNodes.length);
         for (let i = 0; i < 13; i++) {
             let tile = this.tiles.pop();
             if (!tile) {
@@ -140,7 +111,7 @@ export class GameManager extends Component {
                 continue;
             }
             let gridNode = this.gridNodes[i];
-            log(`Dealing tile ${tile.name} to slot ${gridNode.name}`);
+            log(`Dealing tile ${tile.name} to grid ${gridNode.name}`);
             tile.setParent(gridNode, false);
             tile.setPosition(Vec3.ZERO);
 
@@ -149,24 +120,4 @@ export class GameManager extends Component {
         }
     }
 
-    raiseTile(tile: Node) {
-        if (this.raisedTile && this.raisedTile !== tile) {
-            this.raisedTile.getComponent(MahjongTile).lower();
-        }
-        tile.getComponent(MahjongTile).raise();
-        this.raisedTile = tile;
-    }
-
-    discardTile(tile: Node) {
-        log(`Discarding tile: ${tile.name}`);
-        tile.removeFromParent();
-        this.raisedTile = null;
-    }
-
-    spawnMonster() {
-        const monster = instantiate(this.monsterPrefab);
-        monster.parent = this.node;
-        const uiTransform = monster.getComponent(UITransform);
-        monster.setPosition(cc.winSize.width * 0.9 + uiTransform.width / 2, Math.random() * cc.winSize.height);
-    }
 }
