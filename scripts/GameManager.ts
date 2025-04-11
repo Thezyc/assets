@@ -1,4 +1,4 @@
-import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, UITransform, EventTouch, Button, Label, find } from 'cc';
+import { _decorator, Component, Prefab, Node, Sprite, SpriteFrame, instantiate, Vec3, resources, log, find } from 'cc';
 import { MahjongTile } from './MahjongTile';
 const { ccclass, property } = _decorator;
 
@@ -10,37 +10,27 @@ export class GameManager extends Component {
     @property([SpriteFrame])
     tileSprites: SpriteFrame[] = [];
 
-    @property(Prefab)
-    monsterPrefab: Prefab = null; // 怪物预制资源
-
     private tiles: Node[] = [];
-    private gridNodes: Node[] = [];
-    private gridNodeMap: Map<Node, Node> = new Map();
+    public gridNodes: Node[] = [];
+    public gridNodeMap: Map<Node, Node> = new Map();
 
     onLoad() {
         log('GameManager onLoad');
-
-        // 加载麻将牌图片资源并初始化麻将牌
-        this.loadTileSprites().then(() => {
-            this.initTiles();
-        }).catch((err) => {
-            log(`Error loading tile sprites: ${err}`);
-        });
-
 
         // 获取 Grids 节点
         const gridsNode = find('Canvas/Grids');
         if (gridsNode) {
             this.gridNodes = gridsNode.children;
             log(`Found ${this.gridNodes.length} grids`);
-            this.gridNodes.forEach((node, index) => log(`Grid ${index}: ${node.name}`));
         } else {
             log('Grids node not found');
         }
-    }
 
-    onDestroy() {
-
+        this.loadTileSprites().then(() => {
+            this.initTiles();
+        }).catch((err) => {
+            log(`Error loading tile sprites: ${err}`);
+        });
     }
 
     async loadTileSprites() {
@@ -67,26 +57,27 @@ export class GameManager extends Component {
             log('Error: tilePrefab is null');
             return;
         }
-        for (let i = 0; i < 136; i++) {
-            let tile = instantiate(this.tilePrefab);
-            if (!tile) {
-                log(`Error: Tile prefab instantiation failed at index ${i}`);
-                continue;
-            }
-            let sprite = tile.getComponent(Sprite);
-            if (!sprite) {
-                log(`Error: Sprite component not found on tile at index ${i}`);
-                continue;
-            }
+
+        for (let i = 0; i < this.gridNodes.length; i++) {
+            const gridNode = this.gridNodes[i];
+
+            // 创建麻将并设置精灵
+            const tile = instantiate(this.tilePrefab);
+            const sprite = tile.getComponent(Sprite);
             sprite.spriteFrame = this.tileSprites[i % this.tileSprites.length];
-            let tileScript = tile.getComponent(MahjongTile);
-            if (tileScript) {
-                tileScript.setGameManager(this.node);
-                tileScript.setGridNodes(this.gridNodes); // 设置格子节点
-                tileScript.setGridNodeMap(this.gridNodeMap); // 设置格子节点映射关系
-            } else {
-                log(`Error: MahjongTile component not found on tilePrefab at index ${i}`);
-            }
+
+            // 使用世界坐标初始化麻将的位置
+            const gridWorldPos = gridNode.getWorldPosition();
+            tile.setWorldPosition(gridWorldPos);
+
+            // 初始化 MahjongTile 脚本
+            const tileScript = tile.getComponent(MahjongTile);
+            tileScript.setGameManager(this.node);
+            tileScript.setGridNodes(this.gridNodes);
+
+            // 记录到 gridNodeMap
+            this.gridNodeMap.set(gridNode, tile);
+
             this.tiles.push(tile);
         }
         this.shuffleTiles();
@@ -116,7 +107,7 @@ export class GameManager extends Component {
             tile.setPosition(Vec3.ZERO);
 
             // 保存每个麻将的初始位置
-            tile.getComponent(MahjongTile).originalPosition.set(tile.position);
+            tile.getComponent(MahjongTile).originalWorldPosition.set(tile.position);
         }
     }
 
