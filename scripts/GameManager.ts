@@ -94,20 +94,21 @@ export class GameManager extends Component {
 
     dealTiles() {
         log('Dealing tiles');
-        const gridCount = Math.min(this.tiles.length, this.gridNodes.length);
+        
         for (let i = 0; i < 13; i++) {
             let tile = this.tiles.pop();
+            const sprite = tile.getComponent(Sprite);
             if (!tile) {
                 log(`Error: Tile is null at index ${i}`);
                 continue;
             }
             let gridNode = this.gridNodes[i];
-            log(`Dealing tile ${tile.name} to grid ${gridNode.name}`);
+            log(`Dealing tile ${tile.getComponent(Sprite).spriteFrame.name} to grid ${gridNode.name}`);
             tile.setParent(gridNode, false);
             tile.setPosition(Vec3.ZERO);
 
             // 保存每个麻将的初始位置
-            tile.getComponent(MahjongTile).originalWorldPosition.set(tile.position);
+            tile.getComponent(MahjongTile).originalPosition.set(tile.position);
         }
     }
 
