@@ -8,6 +8,7 @@ export class MahjongTile extends Component {
     private gridNodes: Node[] = [];
     private gameManager: Node = null;
     private gridNodeMap: Map<Node, Node> = new Map(); // 用于记录格子和麻将的映射关系
+    private draggedTile: Node | null = null;
 
     onLoad() {
 
@@ -37,7 +38,12 @@ export class MahjongTile extends Component {
     }
 
     onMouseDown(event: EventMouse) {
-        this.isDragging = true;
+        const tile = event.target;
+        if(tile){
+            this.draggedTile = tile as Node; // 存储被拖拽的麻将
+            this.originalPosition.set(tile.position);// 记录麻将牌的初始位置
+            this.isDragging = true;
+        }
 
         
 
@@ -46,18 +52,55 @@ export class MahjongTile extends Component {
     onMouseMove(event: EventMouse) {
         if (this.isDragging) {
             // 更新麻将牌的位置
-            
+            if(this.isDragging && this.draggedTile) {
+                // 将麻将牌的世界坐标转换为当前鼠标位置
+                const worldPos = event.getLocation();
+                const localPos = this.node.getComponent(UITransform)?.convertToNodeSpaceAR(new Vec3(worldPos.x, worldPos.y, 0)); // 转换为局部坐标
+                this.draggedTile.setPosition(localPos); // 更新麻将位置
+            }
         }
-    }
+    }   
 
     onMouseUp(event: EventMouse) {
-        this.isDragging = false;
-
-        // 如果拖拽到可放置的格子，将麻将放置在该格子，否则恢复到原始位置
+        if (!this.draggedTile) return;
         
-
-        // 添加麻将牌移动完成后的日志
-        log(`Tile ${this.node.name} moved to position: ${this.node.position}`);
+        const targetPos = event.getLocation();
+        let targetGridNode: Node | null = null;
+    
+        // 查找当前鼠标位置所在的格子
+        for (let i = 0; i < this.gridNodes.length; i++) {
+            const gridNode = this.gridNodes[i];
+            const gridTransform = gridNode.getComponent(UITransform);
+            
+            // 计算麻将牌和每个格子的距离
+            const gridRect = gridTransform.getBoundingBoxToWorld();
+            if (gridRect.contains(targetPos)) {
+                targetGridNode = gridNode;
+                break;
+            }
+        }
+    
+        if (targetGridNode) {
+            // 获取目标格子是否已有麻将
+            const targetTile = targetGridNode.getComponent('TileScript'); // 假设你有TileScript脚本管理每个格子上的麻将
+            if (targetTile && targetTile.tile) {
+                // 交换位置
+                const targetTileNode = targetTile.tile;
+                const tempPos = targetTileNode.position.clone();
+                targetTileNode.setPosition(this.draggedTile.position);
+                draggedTile.setPosition(tempPos);
+            } else {
+                // 如果目标格子为空，则将麻将移到目标格子
+                draggedTile.setPosition(targetGridNode.position);
+            }
+        } else {
+            // 如果没有有效目标格子，将麻将还原回原位置
+            draggedTile.setPosition(originalPosition);
+        }
+    
+        // 重置拖拽状态
+        this.isDragging = false;
+        draggedTile = null;
     }
 
 
