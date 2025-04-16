@@ -104,7 +104,7 @@ export class GameManager extends Component {
             }
             let gridNode = this.gridNodes[i];
             log(`Dealing tile ${tile.getComponent(Sprite).spriteFrame.name} to grid ${gridNode.name}`);
-            tile.setParent(gridNode, false);
+            tile.setParent(gridNode, true);
             tile.setPosition(Vec3.ZERO);
 
             // 保存每个麻将的初始位置

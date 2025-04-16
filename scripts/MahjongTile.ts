@@ -38,7 +38,7 @@ export class MahjongTile extends Component {
             this.originalPosition.set(tile.getWorldPosition()); // 记录麻将的初始世界位置
             this.isDragging = true;
 
-            log(`选中麻将位置: Initial Position: ${this.originalPosition.toString()}`);
+            log(`选中麻将位置: ${this.originalPosition.toString()}`);
         }
     }
 
@@ -60,16 +60,9 @@ export class MahjongTile extends Component {
         // 查找鼠标释放位置所在的格子
         for (const gridNode of this.gridNodes) {
             const gridTransform = gridNode.getComponent(UITransform);
+            log(gridNode.name + '包围盒: ' + gridTransform.getBoundingBoxToWorld().toString());
             if (gridTransform) {
                 const boundingBox = gridTransform.getBoundingBoxToWorld();
-                const x1 = boundingBox.x;
-                const y1 = boundingBox.y;
-                const x2 = boundingBox.x + boundingBox.width;
-                const y2 = boundingBox.y + boundingBox.height;
-
-                // 输出边界框的左上角、右下角以及目标点的坐标
-                console.log(`格子遍历中${gridNode.name}:Bounding Box: Top-Left (${x1}, ${y1}), Bottom-Right (${x2}, ${y2}), Target Point (${targetPos.x}, ${targetPos.y})`);
-
                 if (boundingBox.contains(new Vec2(targetPos.x, targetPos.y))) {
                     targetGridNode = gridNode;
                     break;
@@ -77,42 +70,35 @@ export class MahjongTile extends Component {
             }
         }
         
-        // 判断目标格子是否有麻将，有则交换，无则直接放入
         if (targetGridNode) {
             const gameManager = this.gameManager.getComponent('GameManager') as any;
             const gridNodeMap = gameManager.gridNodeMap;
-
+            log(`麻将释放位置: ${targetGridNode.name}`);
             if (gridNodeMap.has(targetGridNode)) {
                 const targetTile = gridNodeMap.get(targetGridNode);
 
-                // **修复：排除麻将和目标麻将是同一个的情况**
                 if (targetTile === this.draggedTile) {
                     log('麻将释放: Same tile selected, no swap performed.');
                     this.draggedTile.setWorldPosition(this.originalPosition);
                 } else {
-                    // **修复：交换逻辑**
                     const tempPosition = targetTile.getWorldPosition().clone();
                     targetTile.setWorldPosition(this.draggedTile.getWorldPosition());
                     this.draggedTile.setWorldPosition(tempPosition);
 
-                    // 更新映射关系
                     gridNodeMap.set(targetGridNode, this.draggedTile);
                     gridNodeMap.set(this.node.parent, targetTile);
 
                     log(`麻将释放，交换格子: Swapped with tile at grid ${targetGridNode.name}`);
                 }
             } else {
-                // 目标格子为空的情况
                 this.draggedTile.setWorldPosition(targetGridNode.getWorldPosition());
 
-                // 更新映射
                 gridNodeMap.delete(this.node.parent);
                 gridNodeMap.set(targetGridNode, this.draggedTile);
 
                 log(`MahjongTile onMouseUp: Moved to empty grid ${targetGridNode.name}`);
             }
         } else {
-            // 如果没有有效目标格子，还原到初始位置
             this.draggedTile.setWorldPosition(this.originalPosition);
             log(`MahjongTile onMouseUp: Returned to original position: ${this.originalPosition.toString()}`);
         }
