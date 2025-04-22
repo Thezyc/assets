@@ -57,50 +57,10 @@ export class MahjongTile extends Component {
         const targetPos = event.getUILocation();
         let targetGridNode: Node | null = null;
 
-        // 查找鼠标释放位置所在的格子
-        for (const gridNode of this.gridNodes) {
-            const gridTransform = gridNode.getComponent(UITransform);
-            log(gridNode.name + '包围盒: ' + gridTransform.getBoundingBoxToWorld().toString());
-            if (gridTransform) {
-                const boundingBox = gridTransform.getBoundingBoxToWorld();
-                if (boundingBox.contains(new Vec2(targetPos.x, targetPos.y))) {
-                    targetGridNode = gridNode;
-                    break;
-                }
-            }
-        }
+        // 判断鼠标释放位置的情况，有格子则放入，无格子则返回原点
         
         if (targetGridNode) {
-            const gameManager = this.gameManager.getComponent('GameManager') as any;
-            const gridNodeMap = gameManager.gridNodeMap;
-            log(`麻将释放位置: ${targetGridNode.name}`);
-            if (gridNodeMap.has(targetGridNode)) {
-                const targetTile = gridNodeMap.get(targetGridNode);
-
-                if (targetTile === this.draggedTile) {
-                    log('麻将释放: Same tile selected, no swap performed.');
-                    this.draggedTile.setWorldPosition(this.originalPosition);
-                } else {
-                    const tempPosition = targetTile.getWorldPosition().clone();
-                    targetTile.setWorldPosition(this.draggedTile.getWorldPosition());
-                    this.draggedTile.setWorldPosition(tempPosition);
-
-                    gridNodeMap.set(targetGridNode, this.draggedTile);
-                    gridNodeMap.set(this.node.parent, targetTile);
-
-                    log(`麻将释放，交换格子: Swapped with tile at grid ${targetGridNode.name}`);
-                }
-            } else {
-                this.draggedTile.setWorldPosition(targetGridNode.getWorldPosition());
-
-                gridNodeMap.delete(this.node.parent);
-                gridNodeMap.set(targetGridNode, this.draggedTile);
-
-                log(`MahjongTile onMouseUp: Moved to empty grid ${targetGridNode.name}`);
-            }
-        } else {
-            this.draggedTile.setWorldPosition(this.originalPosition);
-            log(`MahjongTile onMouseUp: Returned to original position: ${this.originalPosition.toString()}`);
+            
         }
 
         this.isDragging = false;
