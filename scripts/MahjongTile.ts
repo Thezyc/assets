@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, log, EventMouse, Input, UITransform, find, Vec2, input } from 'cc';
+import { _decorator, Component, Node, Vec3, log, EventMouse, Input, UITransform, find, Vec2, input, Sprite } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('MahjongTile')
@@ -8,6 +8,8 @@ export class MahjongTile extends Component {
     private gridNodes: Node[] = [];
     private gameManager: Node = null;
     private draggedTile: Node | null = null;
+    // 记录原始格子节点，用于释放时还原或交换位置
+    private originalGrid: Node | null = null;
 
     // 静态变量，用于全局记录当前正在拖拽的实例
     private static currentDragging: MahjongTile | null = null;
@@ -22,6 +24,8 @@ export class MahjongTile extends Component {
 
         // 使用 input 全局监听 MOUSE_UP 事件，确保在任意区域释放鼠标时都能触发拖拽结束
         input.on(Input.EventType.MOUSE_UP, this.onGlobalMouseUp, this);
+        input.on(Input.EventType.MOUSE_MOVE, this.onMouseMove, this);
+        
 
         const gridsNode = find('Canvas/Grids');
         if (gridsNode) {
@@ -37,6 +41,7 @@ export class MahjongTile extends Component {
         this.node.off(Input.EventType.MOUSE_MOVE, this.onMouseMove, this);
         this.node.off(Input.EventType.MOUSE_UP, this.onMouseUp, this);
         input.off(Input.EventType.MOUSE_UP, this.onGlobalMouseUp, this);
+        input.off(Input.EventType.MOUSE_MOVE, this.onMouseMove, this);
 
         // 如果当前实例是正在拖拽的实例，则置空
         if (MahjongTile.currentDragging === this) {
@@ -49,17 +54,25 @@ export class MahjongTile extends Component {
         if (MahjongTile.currentDragging && MahjongTile.currentDragging !== this) {
             MahjongTile.currentDragging.forceEndDrag();
         }
-        
+
         const tile = event.target as Node;
-        if (tile) {
-            this.draggedTile = tile;
-            // 记录麻将的原始世界位置
-            this.originalPosition.set(tile.getWorldPosition());
-            this.isDragging = true;
-            // 更新当前正在拖拽的实例
-            MahjongTile.currentDragging = this;
-            log(`选中麻将位置: ${this.originalPosition.toString()}`);
+        this.draggedTile = event.target as Node;
+        // 记录原始格子节点，用于交换后还原
+        this.originalGrid = this.draggedTile.parent!;
+        // 将拖拽的麻将挂到 Canvas 以确保最高层级
+        const canvas = find('Canvas');
+        if (canvas) {
+            this.draggedTile.setParent(canvas, true);
+            log(`拖拽开始：原始格子 ${this.originalGrid.name}, 已挂载到 Canvas`);
+        } else {
+            log('拖拽开始：未找到 Canvas 节点');
         }
+        this.isDragging = true;
+        // 记录麻将的原始世界位置
+        this.originalPosition.set(this.draggedTile.getWorldPosition());
+        // 更新当前正在拖拽的实例
+        MahjongTile.currentDragging = this;
+        log(`选中麻将位置: ${this.originalPosition.toString()}`);
     }
 
     onMouseMove(event: EventMouse) {
@@ -172,20 +185,35 @@ export class MahjongTile extends Component {
      */
     private returnToOriginalPosition() {
         if (!this.draggedTile) return;
-        this.draggedTile.setWorldPosition(this.originalPosition);
+        // 先将麻将重新挂回原格子
+        if (this.originalGrid) {
+            this.draggedTile.setParent(this.originalGrid, true);
+        }
+        // 重置本地位置到 (0,0,0)
+        this.draggedTile.setPosition(Vec3.ZERO);
+        // 更新 originalPosition 以备下次拖拽使用
+        this.originalPosition.set(this.draggedTile.getWorldPosition());
     }
 
     /**
      * 交换拖拽麻将与目标格子中已有麻将的位置
      */
     private swapTileWithGrid(targetGrid: Node) {
+        // 调试日志：确认进入 swapTileWithGrid
+        log(`-- swapTileWithGrid start -- 被拖拽麻将: ${this.draggedTile?.name}, 目标格子: ${targetGrid.name}`);
+        log(`原始格子节点: ${this.originalGrid?.name}`);
+        
         if (!this.draggedTile) return;
-        const originalGrid = this.draggedTile.parent;
+        const originalGrid = this.originalGrid;
         if (!originalGrid) {
             this.returnToOriginalPosition();
             return;
         }
-        const occupiedTile = targetGrid.children[0];
+        // 找到目标格子中具有 MahjongTile 组件的子节点，确保正确获取占用的麻将
+        const occupiedTile = targetGrid.children.find(child => child.getComponent(MahjongTile)) as Node | undefined;
+        // 调试日志：找到占用的麻将
+        log(`发现格子 ${targetGrid.name} 内的占用麻将: ${occupiedTile.getComponent(Sprite).spriteFrame.name}`);
+
         if (!occupiedTile) {
             this.placeTileInGrid(targetGrid);
             return;
@@ -194,6 +222,9 @@ export class MahjongTile extends Component {
         this.draggedTile.setPosition(Vec3.ZERO);
         occupiedTile.setParent(originalGrid, true);
         occupiedTile.setPosition(Vec3.ZERO);
+        // 调试日志：完成交换后的父节点检查
+        log(`交换完成: 拖拽麻将新的父节点: ${this.draggedTile?.parent?.name}, 被交换麻将新的父节点: ${occupiedTile.parent?.name}`);
+
         const draggedTileScript = this.draggedTile.getComponent(MahjongTile);
         if (draggedTileScript) {
             draggedTileScript.originalPosition.set(this.draggedTile.getWorldPosition());
